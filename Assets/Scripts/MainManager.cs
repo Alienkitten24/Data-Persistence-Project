@@ -3,25 +3,46 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using System.IO;
 
 public class MainManager : MonoBehaviour
 {
+    public static MainManager Instance;
+
     public Brick BrickPrefab;
     public int LineCount = 6;
     public Rigidbody Ball;
 
     public Text ScoreText;
-    public GameObject GameOverText;
+    public GameObject GameOverScreen;
+    public GameObject PauseScreen;
     
     private bool m_Started = false;
-    private int m_Points;
-    
-    private bool m_GameOver = false;
+    public int m_Points;
+    public string PlayerName;
+    public ArrayList HighScores = new ArrayList();
 
-    
-    // Start is called before the first frame update
-    void Start()
+    public static bool m_GameOver = false;
+    public static bool m_GamePaused = false;
+
+    private void Awake()
     {
+        if (Instance != null)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+        DontDestroyOnLoad(gameObject);    
+        
+        LoadData();
+    }
+
+        // Start is called before the first frame update
+        void Start()
+    {
+        
         const float step = 0.6f;
         int perLine = Mathf.FloorToInt(4.0f / step);
         
@@ -53,11 +74,40 @@ public class MainManager : MonoBehaviour
                 Ball.AddForce(forceDir * 2.0f, ForceMode.VelocityChange);
             }
         }
-        else if (m_GameOver)
+        //else if (m_GameOver)
+        //{
+        //   if (Input.GetKeyDown(KeyCode.Space))
+        //    {
+        //        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        //   }
+        //}
+ //       if(BrickPrefab == null)
+   //     {
+     //       m_GameOver = true;
+       //     GameOverScreen.SetActive(true);
+   //     }
+
+        PauseGame();
+    }
+
+    void PauseGame()
+    {
+        if(Input.GetKeyDown("escape"))
         {
-            if (Input.GetKeyDown(KeyCode.Space))
+            m_GamePaused = !m_GamePaused;
+        }
+
+        if (PauseScreen != null)
+        {
+            if (m_GamePaused)
             {
-                SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                PauseScreen.gameObject.SetActive(true);
+                Time.timeScale = 0;
+            }
+            else
+            {
+                PauseScreen.gameObject.SetActive(false);
+                Time.timeScale = 1.0f;
             }
         }
     }
@@ -71,6 +121,45 @@ public class MainManager : MonoBehaviour
     public void GameOver()
     {
         m_GameOver = true;
-        GameOverText.SetActive(true);
+        m_Started = false;
+        HighScores.Add(m_Points); 
+        GameOverScreen.SetActive(true);
+    }
+
+    //data persitence part
+    [System.Serializable]
+    class SaveDataClass
+    {
+        public int m_Points;
+        public string PlayerName;
+        public ArrayList HighScores;
+    }
+
+    public void SaveData()
+    {
+        SaveDataClass data = new SaveDataClass();
+        data.PlayerName = PlayerName;
+        data.m_Points = m_Points;
+        data.HighScores = HighScores;
+
+        string json = JsonUtility.ToJson(data);
+
+        File.WriteAllText(Application.persistentDataPath + "/savefile.json", json);
+    }
+
+    public void LoadData()
+    {
+        string path = Application.persistentDataPath + "/savefile.json";
+
+        if (File.Exists(path))
+        {
+            string json = File.ReadAllText(path);
+            SaveDataClass data = JsonUtility.FromJson<SaveDataClass>(json);
+
+            PlayerName = data.PlayerName;
+            data.m_Points = m_Points;
+            HighScores = data.HighScores;
+
+        }
     }
 }
